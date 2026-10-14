@@ -10,24 +10,39 @@
             font-family: system-ui, -apple-system, sans-serif;
             line-height: 1.6;
             margin: 0;
-            padding: 100px 40px 40px 40px; /* Space at the top for fixed controls */
+            padding: 110px 40px 40px 40px; /* Space at the top for fixed controls */
             background-color: #000000; /* Main background set to black */
             color: #f0f6fc; /* Light text color */
             min-height: 100vh;
             box-sizing: border-box;
         }
 
-        /* Dynamic content styling */
-        .user-title {
+        /* Editable dynamic blocks */
+        .user-block {
+            outline: none;
+            margin-top: 15px;
+            margin-bottom: 15px;
+            transition: background-color 0.2s;
+            border-radius: 4px;
+        }
+        
+        /* Subtle highlight visual guide only when editing mode is engaged */
+        body.editing-active .user-block[contenteditable="true"]:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+        body.editing-active .user-block[contenteditable="true"]:focus {
+            background-color: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 2px #388bfd;
+        }
+
+        h1.user-block {
             color: #ffffff;
-            margin-top: 20px;
-            margin-bottom: 10px;
+            font-weight: 700;
         }
-        .user-text {
+        p.user-block {
             color: #8b949e;
-            margin-top: 10px;
-            margin-bottom: 10px;
         }
+
         .dynamic-img {
             max-width: 100%;
             max-height: 500px;
@@ -73,10 +88,18 @@
             cursor: pointer;
             font-weight: 500;
             font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
         .control-btn:hover {
             background: #30363d;
             border-color: #8b949e;
+        }
+        .edit-btn-active {
+            background-color: #388bfd !important;
+            color: #ffffff !important;
+            border-color: #58a6ff !important;
         }
         .save-btn {
             background-color: #238636;
@@ -102,22 +125,29 @@
             display: none;
         }
         
-        /* Custom workspace container without the old look */
+        /* Content workspace canvas drop zone */
         #workspace {
             width: 100%;
             max-width: 800px;
             margin: 0 auto;
+            min-height: 300px;
         }
     </style>
 </head>
-<body>
+<body class="editing-active">
 
     <!-- Configuration Action Bar -->
     <div class="controls" id="editorControls">
-        <!-- Element Creation -->
+        <!-- Modes & Actions -->
         <div class="control-group">
-            <button class="control-btn" onclick="addElement('title')">+ Add Title</button>
-            <button class="control-btn" onclick="addElement('text')">+ Add Text</button>
+            <button class="control-btn edit-btn-active" id="editToggleBtn" onclick="toggleEditMode()">✏️ Mode: Typing</button>
+            <button class="control-btn" onclick="undoLastAction()">↩️ Undo</button>
+        </div>
+
+        <!-- Element Creation Blueprints -->
+        <div class="control-group">
+            <button class="control-btn" onclick="addBlankElement('h1')">+ Add Title Block</button>
+            <button class="control-btn" onclick="addBlankElement('p')">+ Add Text Block</button>
             <button class="control-btn" onclick="triggerImageUpload()">+ Add JPEG</button>
             <input type="file" id="imageInput" accept="image/jpeg, image/jpg" onchange="previewImage(event)">
         </div>
@@ -148,7 +178,8 @@
 
     <!-- Active Website Workspace -->
     <div id="workspace">
-        <!-- New elements will dump straight onto the black background here -->
+        <h1 class="user-block" contenteditable="true" style="font-family: system-ui, sans-serif; font-size: 40px;">Click here to edit this title...</h1>
+        <p class="user-block" contenteditable="true" style="font-family: system-ui, sans-serif; font-size: 18px;">Click here to type your text content straight onto your website. Use the buttons above to drop additional blocks or adjust your active settings!</p>
     </div>
 
     <!-- Scripting Engine -->
@@ -157,36 +188,44 @@
         const fontSelect = document.getElementById('fontSelect');
         const sizeSlider = document.getElementById('sizeSlider');
         const sizeLabel = document.getElementById('sizeLabel');
+        const editToggleBtn = document.getElementById('editToggleBtn');
+        
+        let isEditing = true;
 
         function updateSizeLabel(val) {
             sizeLabel.textContent = `Size (${val}px):`;
         }
 
-        function addElement(type) {
+        function toggleEditMode() {
+            isEditing = !isEditing;
+            const blocks = document.querySelectorAll('.user-block');
+            
+            if (isEditing) {
+                document.body.classList.add('editing-active');
+                editToggleBtn.textContent = "✏️ Mode: Typing";
+                editToggleBtn.classList.add('edit-btn-active');
+                blocks.forEach(b => b.setAttribute('contenteditable', 'true'));
+            } else {
+                document.body.classList.remove('editing-active');
+                editToggleBtn.textContent = "👁️ Mode: Preview";
+                editToggleBtn.classList.remove('edit-btn-active');
+                blocks.forEach(b => b.setAttribute('contenteditable', 'false'));
+            }
+        }
+
+        function addBlankElement(tagType) {
             const font = fontSelect.value;
             const size = sizeSlider.value + 'px';
-
-            if (type === 'title') {
-                const titleText = prompt("Enter heading text:");
-                if (titleText) {
-                    const h1 = document.createElement('h1');
-                    h1.className = 'user-title';
-                    h1.style.fontFamily = font;
-                    h1.style.fontSize = size;
-                    h1.textContent = titleText;
-                    workspace.appendChild(h1);
-                }
-            } else if (type === 'text') {
-                const bodyText = prompt("Enter body text:");
-                if (bodyText) {
-                    const p = document.createElement('p');
-                    p.className = 'user-text';
-                    p.style.fontFamily = font;
-                    p.style.fontSize = size;
-                    p.textContent = bodyText;
-                    workspace.appendChild(p);
-                }
-            }
+            const el = document.createElement(tagType);
+            
+            el.className = 'user-block';
+            el.setAttribute('contenteditable', isEditing ? 'true' : 'false');
+            el.style.fontFamily = font;
+            el.style.fontSize = size;
+            el.textContent = tagType === 'h1' ? 'New Title Layout Block...' : 'New editable text paragraph...';
+            
+            workspace.appendChild(el);
+            if(isEditing) el.focus();
         }
 
         function triggerImageUpload() {
@@ -200,19 +239,28 @@
                 reader.onload = function(e) {
                     const img = document.createElement('img');
                     img.src = e.target.result;
-                    img.className = 'dynamic-img';
+                    img.className = 'dynamic-img user-block';
                     workspace.appendChild(img);
                 }
                 reader.readAsDataURL(file);
             }
         }
 
+        function undoLastAction() {
+            const children = workspace.children;
+            if (children.length > 0) {
+                workspace.removeChild(children[children.length - 1]);
+            }
+        }
+
         function downloadHTML() {
-            // Remove the editing dashboard layout before exporting code
+            // Force turn off editing attributes and clean up containers before outputting code
+            const blocks = document.querySelectorAll('.user-block');
+            blocks.forEach(b => b.removeAttribute('contenteditable'));
+            
             const controls = document.getElementById('editorControls');
             controls.remove();
             
-            // Script tag removal so the exported file remains clean
             const scripts = document.querySelectorAll('script');
             scripts.forEach(s => s.remove());
 
@@ -222,11 +270,3 @@
             
             link.href = URL.createObjectURL(blob);
             link.download = 'index.html';
-            link.click();
-            
-            // Reload page to bring dashboard framework back for editing
-            location.reload();
-        }
-    </script>
-</body>
-</html>
